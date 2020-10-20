@@ -5,7 +5,6 @@ Motivation: often, users of Python want a set of generally useful functions/oper
 We hope that members of the Stubbs research group will share with each other, via this repository, generally useful python functionality.  
 
 Usage: The user can download some or all of the Python scripts in this directory for their personnal use.  
-
        Most scripts require third-part Python libraries (such as numpy and astropy).  
        Python should inform you which libraries you must install when you attempt to import this Python code by throwing an error like:
        ModuleNotFoundError: No module named 'numpy' 
