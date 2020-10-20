@@ -1242,14 +1242,18 @@ def saveDataToFitsFile(fits_data, file_name, save_dir, header = 'default', overw
     if header is 'default':
         default_file = '/Users/sashabrownsberger/Documents/sashas_python_scripts/general_purpose/extra_files/' + 'default.fits'
         hdul  = fits.open(default_file)
-        header = hdul[0].header
+        if n_mosaic_extensions <= 1:
+            header = hdul[0].header
+        else:
+            header = [hdul[0].header for i in range(n_mosaic_extensions + 1)]
 
     if data_type in ['image', 'Image', 'IMAGE', 'img', 'Img', 'IMG']:
-        if n_mosaic_extensions < 1:
+        print ('n_mosaic_extensions = ' + str(n_mosaic_extensions))
+        if n_mosaic_extensions <= 1:
             master_hdu = fits.PrimaryHDU(fits_data.transpose(), header = header)
             master_hdul = fits.HDUList([master_hdu])
         else:
-            master_hdus = [fits.PrimaryHDU(header = header)] + [fits.ImageHDU(fits_data[i].transpose(), header = header) for i in range(n_mosaic_extensions)]
+            master_hdus = [fits.PrimaryHDU(header = header[0])] + [fits.ImageHDU(fits_data[i].transpose(), header = header[i+1]) for i in range(n_mosaic_extensions)]
             #print ('master_hdus = ' )
             #print ( master_hdus )
             master_hdul = fits.HDUList(master_hdus)
