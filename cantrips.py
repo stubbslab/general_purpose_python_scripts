@@ -264,12 +264,23 @@ def binDataOfTwoVariables(xs, ys, zs, n_x_bins, n_y_bins,
     return x_bin_edges, y_bin_edges, binned_zs, averaged_zs, averaged_z_errs, n_zs_in_bin
 
 def functToPrintMinimization(loaded_funct, params, verbose = 0):
+    """
+    A shell function that computes a function given some parameters,
+    optionally printing (if the verbose flag is set) the loaded
+    parametes and the function value.
+
+    This is useful for doing minimization processes that
+    repeatedly compute a function.
+    """
     result = loaded_funct(params)
     if verbose:
         print ('params ' + str(params.tolist()) + '=> ' + str(result))
     return result
 
 def fitMaskedImage(z_data_2d, z_errs_2d = None, fit_funct = 'poly1', mask_region = [[-np.inf, np.inf], [-np.inf, np.inf]], verbose = 0, init_guess = None, x_lims = None, y_lims = None, param_scalings = None):
+    """
+    Fit a 2D function, f(x, y) to an 2D array with a single square region to be ignored in the fit. 
+    """
     if x_lims is None:
         x_lims = [0, np.shape(z_data_2d)[1]]
     if y_lims is None:
@@ -910,8 +921,6 @@ def rollNumpyArrayToZeros(arr, shift, axis = 0):
     rolled_arr = rolled_arr * rolled_off
     return rolled_arr
 
-
-
 def sign(a):
     """
     return -1 if number is negative or 1 if number is positive or 0 if 0
@@ -944,6 +953,11 @@ def mergeFilesByColumn(file_names, save_file_name, file_dir = '', n_ignore = 0, 
 
 
 def getAllIndecesOfElementInList(list_to_search, elem_to_find):
+    """
+    Gets every instance of a particular element in a list, since
+    python's default index operation gives only the index of the
+    first element.
+    """
     indices = [i for i, x in enumerate(list_to_search) if x == elem_to_find]
     return indices
 
@@ -1070,6 +1084,11 @@ def insertListElement(orig_list, val, index):
     return orig_list[:index] + [val] + orig_list[index:]
 
 def insertListElements(orig_list, index_to_val_dict):
+    """
+    Inserts several elements to particular spots in a list.
+    A dictionary tells the code which indeces, in the final
+    list, the new elements should occupy.
+    """
 
     if not isinstance(index_to_val_dict, dict):
         print ('Second argument of insertListElements must be a dictionary, which it was not. ')
