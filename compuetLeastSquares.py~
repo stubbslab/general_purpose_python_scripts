@@ -1,0 +1,9 @@
+
+
+def computeLeastSquares(x_data, y_data, function, y_errs = [] ):
+    if len(y_errs) == 0:
+        y_errs = [1.0 for x in x_data]
+    resids = [function(x_data[i]) - y_data[i] for i in range(len(x_data))]
+    squared_normalized_dists = [(resids[i] / y_errs[i]) ** 2.0 for i in range(len(x_data)) ]
+
+    return sum(squared_normalized_dists) 

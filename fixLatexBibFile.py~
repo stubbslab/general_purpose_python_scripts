@@ -1,0 +1,51 @@
+#Fixes a latex .bib file to display only the specified number of authors.
+# Returns an updated latex file that should be usable by the latex file.
+
+def makeNewAuthorList(raw_author):
+    raw_author_set = #parse the raw author string by the string 'and'
+    for author in raw_author_list:
+        if ',' in author:
+            #Input author formatted like 'Last, first second'
+            last_name = author[] #from start to comma
+            first_name = author[] #from comma to space
+            mid_name = author[] #from space to end
+        else:
+            #input author formatted like 'first second last'
+
+#Expects every entry to be formatted as a dictionary 
+def trimAuthorList(rawLatexFile, max_n_authors = 3, n_authors_before_etAl = 2):
+    in_file = open (rawLatexFile, 'r')
+    data = in_file.readlines()
+    lines = [line.rstrip('\n') for line in data]
+    updated_entries = []
+    line_in_entry = 0
+    new_entry = []
+    n_braces = 0
+    in_author = 0
+    author_entry = ''
+    for line in lines:
+        if '@' in line:
+            #Start of a new actual entry
+            print 'starting entry' 
+            line_in_entry = 1
+        if line_in_entry:
+            n_braces = n_braces + len([char for char in line if char == '{']) - len([char for char in line if char == '}'])
+            # check if line is something that needs to be updated
+            if 'author' in line:
+                print line
+                in_author = 1
+            if in_author:
+                author_entry = author_entry + line
+                if line.strip()[-2:] == '},':
+                    #End of author entry
+                    print 'author_entry = ' + str(author_entry)
+                    author_entry = ''
+                    in_author = 0
+                    new_author_entry = 
+            new_entry = new_entry + [line]
+            if n_braces == 0:
+                print 'Finishing entry'
+                line_in_entry = 0
+                new_entry = []
+
+    return lines 

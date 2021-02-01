@@ -1,0 +1,160 @@
+import numpy as np
+import scipy.interpolate as interpolate
+import scipy.integrate as integrate 
+import math
+import time 
+import scipy.optimize as optimize
+from CosmologicalParameterArchive import CosmologicalParameterArchive 
+
+class StandardPeriodigram:
+    
+    #min_length_scale should be in parsecs 
+    def computeFrequencies(self, interval, start_n, end_n, extra_f_density_factor = 1.0) :
+        #cosmo_arch = CosmologicalParameterArchive ()
+        #H0 = cosmo_arch.getH0()[0]
+        #c = cosmo_arch.getc() 
+        min_freq = 2.0 * math.pi / interval * start_n
+        max_freq = 2.0 * math.pi / interval * end_n
+        #scaling = H0 / c
+        #max_freq_in_z = optimize.brenth(lambda z: min_lengt_scale * scaling)# calculate from min_length_scale
+        freq_step = 2.0 * math.pi / interval * 1.0 / extra_f_density_factor
+        return np.arange(min_freq, max_freq, freq_step).tolist()
+
+    def computeA0(self):
+        return integrate.quad(lambda x: self.centered_funct(x) * np.cos(x * 0.0), - self.x_interval / 2.0, self.x_interval / 2.0 )[0]
+
+    def getFourierFunction(self):
+        return self.fourier_funct
+
+    def getCalculatedFourierFunction(self, x_vals):
+        return [self.fourier_funct(x_elem) for x_elem in x_vals]
+
+    #My measured peak value without normalization for an input sine of amplitude 1.0
+    def __init__(self, xs, ys, yerrs,
+                 frequencies = None, apply_normalization = 0, normalization_params = [1.0 / (276.509398007 * 2.0), 'mean', 0.0], windowing_funct = 'rect', extra_f_density_factor = 1.0,
+                 remove_zero = 1, normalization_method = 'given', density_of_interpolation_factor = 10.0, convolution_funct = 'sinc', compute_convolution = 0):
+        self.max_x = max(xs)
+        self.min_x = min(xs)
+        self.x_interval = (self.max_x - self.min_x)
+        self.n_xs = len(xs)
+        self.weights = [1.0 / (err ** 2.0) for err in yerrs]
+        self.weighted_mean = sum([ ys[i] * self.weights[i] for i in range(len(self.weights)) ]) / ( sum(self.weights) )
+        self.xs = xs
+        self.remove_zero = remove_zero 
+        if self.remove_zero:
+            self.ys = [y - self.weighted_mean for y in ys]
+        else:
+            self.ys = ys 
+        self.yerrs = yerrs
+
+        if windowing_funct.lower() in ['rect', 'rectangle','flat']:
+            hamming_vals = [1.0 for x in xs]
+        elif windowing_funct.lower() in ['hamming',' hamm']:
+            hamm_const_1 = 25.0/46.0
+            hamm_const_2 = 21.0/46.0
+            min_x = min(xs)
+            max_x = max(xs)
+            n_xs = len(xs)
+            hamming_vals = [hamm_const_1 - hamm_const_2 * np.cos( (2.0 * np.pi * ((np.array(x) - min_x) / (max_x - min_x)) * n_xs )/float(n_xs- 1.0) ) for x in xs]
+        else:
+            hamming_vals = [1.0 for x in xs]
+            print 'Windowing function ' + windowing_funct + ' not recognized.  Setting to flat.'
+
+        if frequencies is None:
+            self.frequencies = self.computeFrequencies(self.x_interval, 1, self.n_xs / 2, extra_f_density_factor = extra_f_density_factor)
+        elif type(frequencies) is int:
+            self.frequencies = self.computeFrequencies(self.x_interval, 1, frequencies, extra_f_density_factor = extra_f_density_factor)
+        else:
+            self.frequencies = frequencies
+
+        self.max_freq = max(self.frequencies)
+        self.min_freq = min(self.frequencies)
+        #self.dense_frequencies = np.arange( min_freq, max_freq, (max_freq - min_freq) / (len(self.frequencies) * density_of_interpolation_factor) )
+        self.windowed_ys = [hamming_vals[i] * self.ys[i] for i in range(len(hamming_vals))]
+        
+        #self.centered_funct = lambda shift_x: self.funct(shift_x + self.x_interval / 2.0 + self.min_x)
+
+        #print 'Computing sin coefs...'
+        start = time.time()
+        self.cos_terms_funct = lambda omega, ys: [ ys[i] * np.cos(omega * self.xs[i]) for i in range(len(xs)) ]
+        self.sin_terms_funct = lambda omega, ys: [ ys[i] * np.sin(omega * self.xs[i]) for i in range(len(xs)) ]
+        self.unnormalized_coef_mags_funct = lambda omega: 1.0 / float(self.n_xs) * (sum( self.cos_terms_funct(omega, self.windowed_ys) ) ** 2.0
+                                                                                    + sum( self.sin_terms_funct(omega, self.windowed_ys) ) ** 2.0 )
+        if compute_convolution: 
+            self.unnormalized_coef_vals_at_freqs = self.unnormalized_coef_mags_funct(np.array(self.frequencies) ) 
+                                           
+            self.unnormalized_coef_mags_interp = interpolate.interp1d(self.frequencies, self.unnormalized_coef_vals_at_freqs)
+
+            if convolution_funct is 'sinc':
+                convolution_funct = lambda omega: (np.sinc(self.x_interval * omega ) * self.x_interval) ** 2.0 
+            self.unnormalized_convolution_funct = lambda omega: integrate.quad(lambda omega_prime: self.unnormalized_coef_mags_funct(omega_prime) * convolution_funct(omega - omega_prime),
+                                                                               self.min_freq, self.max_freq)[0]
+        else:
+            self.unnormalized_convolution_funct = lambda omega: np.zeros(np.shape(omega)) 
+        #print 'Working here. ' 
+        #self.unnormalized_convolution_vals = [self.unnormalized_convolution_funct(freq) for freq in self.frequencies]
+        #print 'Finished computing unnormalized_convolution_vals. '
+    
+        end = time.time()
+        #print 'Took ' + str(end - start) + 's for that.  '
+
+        if apply_normalization:
+            #If we want to normalize such that the integral of the periodigram, divided by the frequencies over which it is computed,
+            # is the same as the power of a single Sin wave, or A^2 / 2.0.  Unfortunately, it doesn't normalize quite right
+            # (more lika Const * A^2, with the Const depending on frequency of input  wave and the size of the frequency range).
+
+            #if normalization_method.lower() in ['convolution', 'convolve']:
+            #    #normalize by convolution of a sinc function with the output
+            #    convolution_vals = []
+            #    for freq in self.frequencies:
+            #        sinc_vals = np.sinc(np.array(frequencies) - freq)
+            #        convolution_vals = convolution_vals + [sum((frequencies[i+1] - frequencies[i-1]) / 2.0 * ] #for efficiency, we do the integral by just summing at the desired frequencies
+            #else:
+            #    #normalize by just scaling to make the total power match 
+
+            if normalization_method in ['given','Given']:
+                self.normalization_coef = normalization_params[0]
+            else: 
+                if normalization_frequency is 'mean':
+                    self.normalization_frequency = np.mean(self.frequencies)
+                else:
+                    normalization_frequency = normalization_params[1]
+                    self.normalization_frequency = normalization_frequency
+                self.normalization_phase = normalization_params[2]
+                self.normalization_funct_ys = self.normalization_amplitude * np.sin(self.normalization_frequency * np.array(self.xs) + self.normalization_phase)
+                self.normalization_periodigram_funct = lambda omega: 1.0 / float(self.n_xs) * (sum( self.cos_terms_funct(omega, self.normalization_funct_ys) ) ** 2.0
+                                                                                               + sum( self.sin_terms_funct(omega, self.normalization_funct_ys) ) ** 2.0 )
+
+                self.normalization_coef = (self.max_freq - self.min_freq) / (integrate.quad(self.normalization_periodigram_funct, self.min_freq, self.max_freq))[0] * (self.normalization_amplitude)**2.0 / 2.0
+            #print 'periodigram normalization coefficient = ' + str(self.normalization_coef) 
+            self.normalized_coef_mags_funct = lambda omega: (np.array(self.unnormalized_coef_mags_funct(omega)) * self.normalization_coef).tolist()
+            
+        else:
+            self.normalized_coef_mags_funct = self.unnormalized_coef_mags_funct
+            self.normalized_convolution_funct = self.unnormalized_convolution_funct
+
+        #self.A0 = self.computeA0()
+
+        self.A0 = 0
+        #self.sin_coefs = [self.sin_terms_funct(freq, self.ys) for freq in self.frequencies]
+        #self.cos_coefs = [self.cos_terms_funct(freq, self.ys) for freq in self.frequencies]
+        self.sin_coefs = []
+        self.cos_coefs = [] 
+        self.normalized_coef_mags = []
+        self.normalized_convolved_mags = [] 
+        for i in range(len(self.frequencies)):
+            start = time.time() 
+            freq = self.frequencies[i]
+            self.sin_coefs = self.sin_coefs + [self.sin_terms_funct(freq, self.ys)]
+            self.cos_coefs = self.cos_coefs + [self.cos_terms_funct(freq, self.ys)]
+            self.normalized_coef_mags = self.normalized_coef_mags + [self.normalized_coef_mags_funct(freq)]
+            if compute_convolution: 
+                self.normalized_convolved_mags = self.normalized_convolved_mags + [self.normalized_convolution_funct(freq)]
+            end = time.time()
+            if i % 1000 == 999: 
+                print 'Took ' + str(end - start) + 's for iteration ' + str(i) 
+        #self.normalized_coef_mags = [self.normalized_coef_mags_funct(freq) for freq in self.frequencies]
+        
+        #self.fourier_mags = [math.sqrt(self.sin_coefs[i] ** 2.0 + self.cos_coefs[i] ** 2.0) for i in range(len(self.sin_coefs)) ]
+
+    

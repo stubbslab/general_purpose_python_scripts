@@ -1,0 +1,4 @@
+#Returns a list of specified length that goes
+# from given start to (and including) given end
+
+def getListOfLength()

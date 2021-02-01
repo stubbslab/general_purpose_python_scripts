@@ -1,0 +1,41 @@
+from StandardPeriodigram import StandardPeriodigram
+from computeDistributionOfFourierModesOfFunction import computeDistributionOfFourierModesOfFunction
+from computeDistributionOfFourierModesOfFunction import determineBestFitCBPFunctionsByFrequency
+import scipy.special as special
+import numpy as np
+import math
+import scipy.integrate as integrate 
+
+
+class PeriodigramsRedrawnFromData:
+
+
+    def computeSumOfSquares(self,modes_by_frequency):
+
+        raw_sum_of_squares = sum( [(modes_by_frequency[i] - self.best_fit_cpb_results[1][i][0]) ** 2.0 /(self.best_fit_cpb_results[1][i][1]) ** 2.0
+                                   for i in range(len(modes_by_frequency)) ])
+        return raw_sum_of_squares
+
+    def __init__(self, xs, ys, y_errs, frequencies, n_redraw, apply_normalization = 1, windowing_funct = 'rect',model_CPB_funct = 'err_funct', model_prob_density_funct = 'normal', function_to_decompose = lambda xs: 0.0 if type(xs) in [int, float] else np.zeros(np.shape(xs)) ):
+
+        self.true_periodigram = StandardPeriodigram(xs, ys, y_errs, frequencies = frequencies, windowing_funct = windowing_funct, apply_normalization = apply_normalization )
+
+        self.frequencies, self.sin_coefs_set_by_frequency, self.cos_coefs_set_by_frequency, self.total_coef_mags_set_by_frequency, self.true_sin_coefs, self.true_cos_coefs, self.true_total_coef_mags = computeDistributionOfFourierModesOfFunction(xs, ys, y_errs, function_to_decompose, n_terms = n_redraw, frequencies = frequencies, return_full = 1, windowing_funct = windowing_funct, pre_calculated_function = 0, sort_by_frequency = 1, apply_normalization = apply_normalization, resample_from_data = 1, calc_single_set_function_modes = 0)
+
+
+        if model_CPB_funct is 'err_funct':     
+            err_funct = lambda x, params: 0.5 * (1.0 + special.erf ((x - params[0])/ (params[1] * math.sqrt(2.0))))
+            truncated_err_funct = lambda x, params: (err_funct(x, params) - err_funct(0.0, params)) / (1.0 - err_funct(0.0, params))
+            self.model_CPB_funct = truncated_err_funct
+    #determine a bunch of normal fits to the data and then calculate the probability 
+        if model_prob_density_funct is 'normal':
+            err_funct = lambda x, params: 0.5 * (1.0 + special.erf ((x - params[0])/ (params[1] * math.sqrt(2.0))))
+            truncated_gaussian = lambda x, params: 1.0 / (math.sqrt(2.0 * math.pi) * params[1]) * np.exp(-(x-params[0]) ** 2.0 / (2.0 * params[1] ** 2.0)) / (1.0 - err_funct(0.0, params))       
+            self.model_prob_density_funct = truncated_gaussian
+
+        self.best_fit_cpb_results = determineBestFitCBPFunctionsByFrequency(self.total_coef_mags_set_by_frequency, self.model_CPB_funct, self.model_prob_density_funct )
+
+        self.total_coef_mags_set_by_draw = np.array(self.total_coef_mags_set_by_frequency).transpose().tolist()
+        
+        self.distributionOfSumOfSquares = [self.computeSumOfSquares(redrawn_fourier_modes) for redrawn_fourier_modes in self.total_coef_mags_set_by_draw]
+        

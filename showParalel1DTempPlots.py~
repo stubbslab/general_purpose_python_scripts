@@ -1,0 +1,19 @@
+#Plot a series of parallel color plots for the 1d function f(x_i, y)
+# There is ONE function, f(x_i, y), for each x_i, and they are not
+#  generally assumed to be continuously related.
+
+import matplotlib.pyplot as plt
+
+
+def showParallel1DTempPlots(xs, y_range, functs, axarr = None, axarr_hist_index = None, white_space = None, y_density = 100, show = 1, save = 0, return = ):
+
+    xs, functs = simulSortLists(xs, functs)
+
+    if axarr is None:
+        f, axarr = plt.subplots(1,1, squeeze = False)
+    if axarr_hist_index is None:
+        axarr_hist_index = 0
+
+    full_funct = lambda x, y: 
+    
+    if show

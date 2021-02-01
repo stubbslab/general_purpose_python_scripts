@@ -1,0 +1,38 @@
+#Distributes roughly even number of points over a sphere, according to the
+# method described in this paper:
+# https://www.cmu.edu/biolphys/deserno/pdf/sphere_equi.pdf
+#Note that it opts to distribute slightly less than exactly the number of
+# requested points in favor of ensuring that the points are evenly distributed
+
+def getEvenPointsOnSphere(n_points, r = 1.0, return_format = 'vec'):
+    n_placed = 0
+    point_area = 4 * math.pi / N
+    point_side = math.sqrt(point_area)
+    n_theta = round(math.pi / point_side)
+    theta_sep = math.pi / float(n_theta)
+    phi_sep = math.pi / float(n_theta)
+
+    phi_theta_pairs = []
+
+    for i in range(n_theta):
+        theta_cent = math.pi (i + 0.5) / n_theta
+        n_phi = round(2 * math.pi * math.sin(theta_cent) / float(phi_sep))
+        for j in range(n_phi):
+            phi_cent = 2 * math.pi * j / n_phi
+            phi_theta_pairs = phi_theta_pairs + [phi_cent, theta_cent]
+
+    if return_format == 'angles':
+        return phi_theta_pairs
+    elif return_format == 'vec':
+        return [[r * math.cos(phi_theta[0]) * math.sin(phi_theta[1]),
+                 r * math.sin(phi_theta[0]) * math.sin(phi_theta[1]),
+                 r* cos(phi_theta[1]) ]
+                 for phi_theta in phi_theta_pairs]
+    else:
+        return [[r * math.cos(phi_theta[0]) * math.sin(phi_theta[1]),
+                 r * math.sin(phi_theta[0]) * math.sin(phi_theta[1]),
+                 r* cos(phi_theta[1]) ]
+                 for phi_theta in phi_theta_pairs]return 
+            
+            
+                      

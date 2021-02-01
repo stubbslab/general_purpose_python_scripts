@@ -1,0 +1,10 @@
+#Fixes a latex .bib file to display only the specified number of authors.
+# Returns an updated latex file that should be usable by the latex file.
+
+#Expects every entry to be formatted as a dictionary 
+def trimAuthorList(rawLatexFile, max_n_authors = 3, n_authors_before_etAl = 2):
+    in_file = open (rawLatexFile, 'r')
+    data = in_file.readlines()
+    print data 
+
+    return 

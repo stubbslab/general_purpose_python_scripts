@@ -1,0 +1,14 @@
+from StandardPeriodigram import StandardPeriodigram
+from computeDistributionOfFourierModesOfFunction import computeDistributionOfFourierModesOfFunction
+
+
+class PerioidigramRedrawnFromData:
+
+    def __init__(self, xs, ys, y_errs, frequencies, n_redraw, apply_normalization = 1, windowing_funct = windowing_funct):
+
+        self.true_periodigram = StandardPeriodigram(xs, ys, y_errs, frequencies = frequencies, windowing_funct = windowing_funct, apply_normalization = apply_normalization)
+        self.randomlyGeneratedDistributions =
+
+        self.frequencies, self.sin_coefs_set_by_frequency, self.cos_coefs_set_by_frequency, self.total_coef_mags_set_by_frequency, self.true_sin_coefs, self.true_cos_coefs, self.true_total_coef_mags = computeDistributionOfFourierModesOfFunction(xs, ys, y_errs, function_to_decompose, n_terms = n_redraw, frequencies = frequencies, return_full = 1, windowing_funct = windowing_funct, pre_calculated_function = 0, sort_by_frequency = 1, apply_normalization = apply_normalization, resample_from_data = 1, calc_single_set_function_modes = 0)
+        self.distributionOfChiSquares = [self.computeChiSquares(redrawn_fourier_modes) for redrawn_fourier_modes in self.randomlyGeneratedDistributions]
+        

@@ -1,0 +1,30 @@
+#Take in two lists (x-data and y-data for some points) and return
+# the same lists, with a random rearrangement of which x-y pairings.
+
+from random import randint
+
+def randomSortData(x_data, y_data, n_draws = -1, y_errs = None, replace = 0):
+
+    if n_draws < 0: n_draws = len(x_data) 
+
+    new_x_data = []
+    new_y_data = []
+    if not y_errs is None: new_y_errs = []
+
+    for i in range(n_draws):
+        #print 'i = ' + str(i) 
+        x_index = randint(0, len(x_data) - 1)
+        y_index = randint(0, len(x_data) - 1)
+        #print 'x_index = ' + str(x_index)
+        #print 'y_index = ' + str(y_index) 
+        new_x_data = new_x_data + [x_data[x_index]]
+        new_y_data = new_y_data + [y_data[y_index]]
+        if not y_errs is None: new_y_errs = new_y_errs + [y_errs[y_index]]
+        
+        if not replace:
+            x_data = x_data[0:x_index] + x_data[x_index + 1:len(x_data)] if x_index < len(x_data) - 1 else x_data[0:len(x_data)-1]
+            y_data = y_data[0:y_index] + y_data[y_index + 1:len(y_data)] if y_index < len(y_data) - 1 else y_data[0:len(y_data)-1]
+            if not y_errs is None: y_errs = y_errs[0:y_index] + y_errs[y_index + 1:len(y_errs)] if y_index < len(y_errs) - 1 else y_errs[0:len(y_errs)-1]
+
+    if not y_errs is None: return new_x_data, new_y_data, new_y_errs
+    else: return new_x_data, new_y_data 

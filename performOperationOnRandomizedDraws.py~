@@ -1,0 +1,53 @@
+#Perform some function on random draws from some data to see how special the actual distribution is
+# Note that the operation must return a scalar,
+#  and must accept y_errs as optional argument (though it doesn't need to use them for anything)
+
+import math
+import numpy as np
+import randomSimulationFunctions
+import matplotlib.pyplot as plt
+
+def performOperationOnRandomizedDraws(x_data, y_data, operation, n_draws, y_errs = None,
+                                     rand_select_method = 'random_sort', replace = 0,
+                                     plot = 0, plot_bins = 10):
+    
+    actual_value = operation(x_data, y_data, y_errs = y_errs)
+
+    random_draw_values = []
+
+    rand_select_method = rand_select_method.lower()
+    y_errs_required = 0
+    for draw in range(n_draws):
+        if rand_select_method in ['n_sig','n_sigma','random_sort_n_sigma','randomsortnsigma','n_sigma_sort','nsigmasort']:
+            sort_function = randomSimulationFunctions.randomSortNSigma
+            y_errs_required = 1
+        elif rand_select_method in ['random_sort','randomsort','rand_sort','randsort']:
+            sort_function = randomSimulationFunctions.randomSortData
+            y_errs_required = 0
+        else:
+            sort_function = randomSimulationFunctions.randomSortData
+            y_errs_required = 0
+        if y_errs_required: 
+            randomized_vals = sort_function(x_data, y_data, y_errs, replace = replace)
+        else:
+            randomized_vals = sort_function(x_data, y_data, y_errs = y_errs, replace = replace)
+        rand_xs = randomized_vals[0]
+        rand_ys = randomized_vals[1]
+        if len(randomized_vals) > 2:
+            rand_yerrs = randomized_vals[2]
+        else:
+            rand_yerrs = None 
+        random_draw_values = random_draw_values + [operation(rand_xs, rand_ys, y_errs = rand_yerrs)]
+
+    if plot:
+        plt.hist(random_draw_values, bins = plot_bins, color = 'b')
+        plt.xlabel('operation value')
+        plt.ylabel('number of randomized values')
+        plt.title('histogram of operation values from random draws')
+        plt.annotate('(true val)',xy = (actual_value, 0.0),xytext = (actual_value, n_draws / 20.0), color = 'r',
+                     arrowprops=dict(facecolor='red', shrink=0.05))
+        plt.show()
+
+    return actual_value, random_draw_values
+        
+        

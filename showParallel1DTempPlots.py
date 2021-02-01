@@ -1,0 +1,67 @@
+#Plot a series of parallel color plots for the 1d function f(x_i, y)
+#There is ONE function, f(x_i, y), for each x_i, and they are not
+# generally assumed to be continuously related.
+#Functs must be abe to accept numpy arrays as one and only argument . 
+
+import matplotlib.pyplot as plt
+from cantrips import simulSortLists
+from cantrips import getIndexOfClosestElement
+from cantrips import indexMultiDimArrayWithUnknownNumberOfIndeces
+from cantrips import operateOnNumpyArray
+import numpy as np
+from matplotlib import cm 
+
+
+
+def showParallel1DTempPlots(xs, y_range, functs, axarr = None, axarr_indeces = None, white_space = 0.0, n_ys_in_range = 100, show = 1, save = 0,
+                            xlabel = '', ylabel = '', title = '', 
+                            levels = None, colormap = None, xticks = None, show_colorbar = 1, return_single_plot = 0):
+    if colormap is None: colormap = cm.jet
+
+    #print '[funct ([0.0001, 0.0005]) for funct in functs] = ' + str([funct ([0.0001, 0.0005]) for funct in functs])
+
+    xs, functs = simulSortLists(xs, functs)
+    n_xs = len(xs)
+    x_bounds = [xs[0] - (xs[1] - xs[0]) / 2.0] + [(xs[i] + xs[i-1]) / 2.0 for i in range(1, n_xs)]  + [xs[n_xs - 1] + (xs[n_xs - 1] - xs[n_xs - 2]) / 2.0 ]
+    ys = np.linspace(y_range[0], y_range[1], n_ys_in_range)
+
+    if axarr is None:
+        f, axarr = plt.subplots(1,1, squeeze = False)
+    if axarr_indeces is None:
+        axarr_indeces = [0,0]
+    axarr_to_plot = indexMultiDimArrayWithUnknownNumberOfIndeces(axarr, axarr_indeces)
+
+    full_funct = lambda x, y: functs[getIndexOfClosestElement(xs, x)] (y)
+    '[full_funct(x, 2.0) for x in xs] = '
+
+    last_contours = ''
+
+    for i in range(len(xs)):
+        if i % 100 == 0: print ('Working on x ' + str(xs[i]) + ' which has i = ' + str(i) + ' of total ' + str(len(xs)) )
+        x_range = (x_bounds[i] + white_space / 2.0, x_bounds[i+1] - white_space / 2.0)
+        funct = functs[i] 
+        xmesh, ymesh = np.meshgrid(x_range, ys)
+        funct_vals = funct(ys)
+        #print 'funct_vals = ' + str(funct_vals) 
+        val_grid = np.array( [ [val, val] for val in funct_vals] ).reshape(np.shape(ymesh)) 
+        axarr_to_plot.set_xlim([ x_bounds[0], x_bounds[len(x_bounds)-1] ])
+        axarr_to_plot.set_ylim(y_range[0], y_range[1])
+        #print 'val_grid = ' + str(val_grid) 
+        last_contours = axarr_to_plot.contourf(xmesh, ymesh, val_grid, levels = levels, cmap = colormap)
+        #print ('!!!!!HERE1!!!!!') 
+        #axarr_to_plot.contourl(xmesh, ymesh, val_grid, levels = levels, cmap = 'black')
+
+    if xticks is None:
+        axarr_to_plot.set_xticks(xs)
+    else:
+        axarr_to_plot.set_xticks(xticks)
+    if show_colorbar: plt.colorbar(last_contours, np.linspace(0.0, 1.0, 11))
+    axarr_to_plot.set_xlabel(xlabel)
+    axarr_to_plot.set_ylabel(ylabel)
+    axarr_to_plot.set_title(title) 
+    
+    if show:
+        plt.show() 
+
+    if return_single_plot: return last_contours
+    else: return 1
