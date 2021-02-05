@@ -279,7 +279,7 @@ def functToPrintMinimization(loaded_funct, params, verbose = 0):
 
 def fitMaskedImage(z_data_2d, z_errs_2d = None, fit_funct = 'poly1', mask_region = [[-np.inf, np.inf], [-np.inf, np.inf]], verbose = 0, init_guess = None, x_lims = None, y_lims = None, param_scalings = None):
     """
-    Fit a 2D function, f(x, y) to an 2D array with a single square region to be ignored in the fit. 
+    Fit a 2D function, f(x, y) to an 2D array with a single square region to be ignored in the fit.
     """
     if x_lims is None:
         x_lims = [0, np.shape(z_data_2d)[1]]
@@ -1670,7 +1670,7 @@ def safeLog10BigN(num, max_val = 18638034485637632000/2, scaling = 10):
         return safeLog10BigN(num / 10, max_val = max_val, scaling = scaling) + np.log10(scaling)
 
 
-def recursiveStrToListOfLists(str_of_lists_of_lists, elem_type_cast = str):
+def recursiveStrToListOfLists(str_of_lists_of_lists, elem_type_cast = str, list_bracket_types = ['[', ']'] ):
     """
     Take a string of a python list, and turn it into a list.  This works even if the list itself
     contains lists.  That is the recursive part.
@@ -1683,7 +1683,7 @@ def recursiveStrToListOfLists(str_of_lists_of_lists, elem_type_cast = str):
     """
     str_of_lists_of_lists = str_of_lists_of_lists.strip()
     #If we need to start a new list, then we go one level deeper
-    if (str_of_lists_of_lists[0] != '[' or str_of_lists_of_lists[-1] != ']'):
+    if (str_of_lists_of_lists[0] != list_bracket_types[0] or str_of_lists_of_lists[-1] != list_bracket_types[1]):
         print('The string provided does not start with "[" and end with "]" and thus cannot be converted to a list.')
         return 0
     raw_elems_of_list = str_of_lists_of_lists[1:-1].split(',')
@@ -1694,9 +1694,9 @@ def recursiveStrToListOfLists(str_of_lists_of_lists, elem_type_cast = str):
         if elem_index > closing_elem_index:
             elem = raw_elems_of_list[elem_index]
             #If we need to start a new list, then we go one level deeper
-            if elem[0] == '[':
-                n_open = len([char for char in elem if char == '['])
-                n_close = len([char for char in elem if char == ']'])
+            if elem[0] == list_bracket_types[0]:
+                n_open = len([char for char in elem if char == list_bracket_types[0]])
+                n_close = len([char for char in elem if char == list_bracket_types[1]])
                 #n_open = 1
                 #n_close = 0
                 closing_elem_index = elem_index
@@ -1704,16 +1704,16 @@ def recursiveStrToListOfLists(str_of_lists_of_lists, elem_type_cast = str):
                     closing_elem_index = closing_elem_index + 1
                     new_elem = raw_elems_of_list[closing_elem_index]
                     #if '[' in new_elem: n_open = n_open + 1
-                    n_open = n_open + len([char for char in new_elem if char == '['])
+                    n_open = n_open + len([char for char in new_elem if char == list_bracket_types[0]])
                     #if ']' in new_elem: n_close = n_close + 1
-                    n_close = n_close + len([char for char in new_elem if char == ']'])
+                    n_close = n_close + len([char for char in new_elem if char == list_bracket_types[1]])
 
                 sublist_str = ','.join([raw_elems_of_list[i] for i in range(elem_index, closing_elem_index+1)])
-                elems_of_list = elems_of_list + [recursiveStrToListOfLists(sublist_str, elem_type_cast = elem_type_cast)]
+                elems_of_list = elems_of_list + [recursiveStrToListOfLists(sublist_str, elem_type_cast = elem_type_cast, list_bracket_types = list_bracket_types )]
                 #and jump the elem_index up past this curent value
                 elem_index = closing_elem_index
             else:
-                if elem[-1] == ']':
+                if elem[-1] == list_bracket_types[1]:
                     elem = elem[0:-1]
                 elems_of_list = elems_of_list + [elem_type_cast(elem)]
 
