@@ -23,7 +23,6 @@ class CosmologicalParameterArchive:
                 'Units for H0 not recognized.  Returning default of 1/s. '
                 return [self.H0 * km_to_Mpc, self.H0Err * km_to_Mpc]
 
-
     #return H0 in inverse seconds
     def getH0_invSec(self):
         return [self.H0 * (1.0 / (3.0857 * 10 ** 19)), self.H0Err * (1.0 / (3.0857 * 10 ** 19))]

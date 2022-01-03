@@ -1,4 +1,4 @@
-import cantrips as c
+import cantrips as can
 import astropy.stats as astrostats
 from astropy.io import fits
 from photutils import DAOStarFinder
@@ -10,6 +10,7 @@ from matplotlib.colors import LogNorm
 from astropy.coordinates import Angle
 from astropy import units as u
 from astropy import wcs
+from datetime import datetime
 
 def divideSkyCircleIntoNRings(n_sky_rings, maximum_angle_rad, n_start_angles = 16, n_angle_windings = 1):
     sky_ring_radii = np.linspace(0.0, maximum_angle_rad, n_sky_rings+1)[1:]
@@ -46,8 +47,8 @@ def divideSkyCircleIntoNRings(n_sky_rings, maximum_angle_rad, n_start_angles = 1
         angles_around_circle = np.linspace(sky_angle_starts[i], 2.0 * np.pi + sky_angle_starts[i], n_pixels+1)[0:-1] % (np.pi * 2.0)
         sky_pixel_centers[i] = [[average_radius, angle_around_circle] for angle_around_circle in angles_around_circle]
 
-    sky_pixel_centers = c.flattenListOfLists(sky_pixel_centers)
-    sky_pixel_solid_angles = c.flattenListOfLists(sky_pixel_solid_angles)
+    sky_pixel_centers = can.flattenListOfLists(sky_pixel_centers)
+    sky_pixel_solid_angles = can.flattenListOfLists(sky_pixel_solid_angles)
 
     return [sky_pixel_centers, sky_pixel_solid_angles]
 
@@ -122,7 +123,7 @@ def measure1dPSFOfStar(init_x, init_y, img_file, target_dir, init_fwhm_guess_arc
 
     init_fwhm_guess = init_fwhm_guess_arcsec / pixel_scaling
     if verbose: print ('init_fwhm_guess in pixels = ' + str(init_fwhm_guess))
-    img, header = c.readInDataFromFitsFile(img_file, target_dir)
+    img, header = can.readInDataFromFitsFile(img_file, target_dir)
     init_sig_guess = fwhmToSig(init_fwhm_guess)
     current_fit_params =[init_x, init_y, np.nan, init_sig_guess]
     current_fit_guess = init_fit_guess
@@ -141,7 +142,7 @@ def measure1dPSFOfStar(init_x, init_y, img_file, target_dir, init_fwhm_guess_arc
             current_fit = measure1DPSFOfStarFixedRadius(current_x, current_y, img, round(fit_radius_scaling * current_sig), [round(scaling * current_sig) for scaling in bg_radii_scalings],
                                                         fit_guess = current_fit_guess, radial_fit_funct = radial_fit_funct,
                                                         show_fit = show_fit, verbose = verbose,
-                                                        display_title = 'Centroiding at ' + str([c.round_to_n(init_x, 5), c.round_to_n(init_y, 5)]) + ' in file ' + img_file)
+                                                        display_title = 'Centroiding at ' + str([c.round_to_n(init_x, 5), can.round_to_n(init_y, 5)]) + ' in file ' + img_file)
             current_fit_params = current_fit[0:-1]
             current_fit_minimized_val = current_fit[-1]
             current_fit_guess = [0.0, 0.0, current_fit_params[2], current_fit_params[3]]
@@ -174,10 +175,10 @@ def measure1DPSFOfStarFixedRadius(x, y, img, star_fit_radius, bg_radii,
     x_mesh, y_mesh = np.meshgrid(xs, ys)
     #print ('[np.shape(x_mesh), np.shape(subimage)] = ' + str([np.shape(x_mesh), np.shape(subimage)]))
     r_mesh = np.sqrt(x_mesh ** 2.0 + y_mesh ** 2.0)
-    vals = c.flattenListOfLists(subimage)
-    flat_xs = c.flattenListOfLists(x_mesh)
-    flat_ys = c.flattenListOfLists(y_mesh)
-    rs =  c.flattenListOfLists(r_mesh)
+    vals = can.flattenListOfLists(subimage)
+    flat_xs = can.flattenListOfLists(x_mesh)
+    flat_ys = can.flattenListOfLists(y_mesh)
+    rs =  can.flattenListOfLists(r_mesh)
     #print ('[np.argmin(rs), np.argmax(vals)] = ' + str([np.argmin(rs), np.argmax(vals)] ))
 
 
@@ -265,7 +266,7 @@ def getSeeingInImage(img_file, target_dir, kernel_in_arcsec,
 
     print ('Found ' + str(len(xs)) + ' stars.   Picking ' + str(desired_n_stars) + ' brightest stars with no pixels above ' + str(good_pix_thresh) + 'ADU...')
 
-    xs, ys, fluxes, peaks = c.safeSortOneListByAnother(fluxes, [xs, ys, fluxes, peaks])
+    xs, ys, fluxes, peaks = can.safeSortOneListByAnother(fluxes, [xs, ys, fluxes, peaks])
     xs.reverse()
     ys.reverse()
     fluxes.reverse()
@@ -302,7 +303,7 @@ def getDAOStarFinderStats(img_file, target_dir, kernel_in_pix,
                           sig_clipping_for_stats = 3.0, star_find_n_sig_threshold = 4.0,
                           fit_radius_scaling = 5.0, bg_radii_scalings = [7.0, 8.0]):
 
-    data, header = c.readInDataFromFitsFile(img_file, target_dir)
+    data, header = can.readInDataFromFitsFile(img_file, target_dir)
     mean, median, std = astrostats.sigma_clipped_stats(data, sigma=sig_clipping_for_stats)
     print ('Finding stars in image: ' + target_dir + img_file)
     daofind = DAOStarFinder(fwhm = kernel_in_pix, threshold = star_find_n_sig_threshold * std)
@@ -312,3 +313,49 @@ def getDAOStarFinderStats(img_file, target_dir, kernel_in_pix,
                'peak':sources['peak'].data, 'flux':sources['flux'].data, 'mag':sources['mag'].data}
 
     return results
+
+def measureStatisticsOfFitsImages(img_list, data_dir = None, n_mosaic_image_extensions = 0,
+                                    #img_indeces_to_id = None, img_ids = None,
+                                    time_header_key = 'STARTEXP', time_header_formatting = '%Y-%m-%dT%H:%M:%SZ',
+                                    stat_type = 'median', show_plot = 1, n_std_lims = 3.5,
+                                    save_plot = 0, save_plot_name = None, ax = None, data_sect = None,
+                                    xlabel = r'$\Delta t$ (sec)', ylabel = None, labelsize = 16, title = '', titlesize = 20, color = 'k'):
+    if ylabel == None:
+        ylabel = stat_type + ' of counts in images'
+
+    stats = []
+    exp_time_strs = []
+    for i in range(len(img_list)):
+        img = img_list[i]
+        data, header = can.readInDataFromFitsFile(img, data_dir, n_mosaic_image_extensions = n_mosaic_image_extensions)
+        if data_sect != None:
+            data = data[data_sect[0][0]:data_sect[0][1], data_sect[1][0]:data_sect[1][1]]
+        if stat_type == 'median':
+            stat = np.median(data)
+        elif stat_type == 'mean':
+            stat = np.mean(data)
+        elif stat_type == 'std':
+            stat = np.std(data)
+
+        stats = stats + [stat]
+        exp_time_strs = exp_time_strs + [header[time_header_key]]
+    stats_mean = can.sigClipMean(stats, sig_clip = n_std_lims)
+    stats_std = can.sigClipStd(stats, sig_clip = n_std_lims)
+    exp_times_datetimes = [datetime.strptime(exp_time_str, time_header_formatting) for exp_time_str in exp_time_strs]
+    exp_times = [exp_time.timestamp() for exp_time in exp_times_datetimes]
+    min_time = min(exp_times)
+    delta_ts = [exp_time - min_time for exp_time in exp_times]
+    if ax == None:
+        f, axarr = plt.subplots(1,1)
+        ax = axarr
+    ax.plot(delta_ts, stats, marker = '.', c = color)
+    ax.set_ylim(stats_mean - stats_std * n_std_lims, stats_mean + stats_std * n_std_lims)
+    ax.set_xlabel(xlabel, fontsize = labelsize)
+    ax.set_ylabel(ylabel, fontsize = labelsize)
+    ax.set_title(title, fontsize = titlesize)
+    if save_plot and save_plot_name != None:
+        plt.savefig(save_plot_name)
+    if show_plot:
+        plt.show()
+
+    return exp_times, stats

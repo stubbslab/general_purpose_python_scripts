@@ -24,6 +24,49 @@ from PyAstronomy import pyasl
 import AstronomicalParameterArchive as apa
 from datetime import datetime
 
+def measureAreaOfContour(contour):
+    """
+    (Copied from https://stackoverflow.com/questions/22678990/how-can-i-calculate-the-area-within-a-contour-in-python-using-the-matplotlib)
+    Measure the area enclosed in some contours.
+
+    Parameters
+    ----------
+    contour - A series of (x,y) points defining the contour in which the area should be computed.
+    Returns the area inside of that contours
+
+    #Sample use, plotting the inner contour:
+    lims = [-10.5, 10.5]
+    plt.xlim(lims)
+    plt.ylim(lims)
+    xs, ys = [np.linspace(-10, 10, 201), np.linspace(lims[0] + 0.5, lims[1] - 0.5, 201)]
+    xmesh, ymesh = np.meshgrid(xs, ys)
+    zs = np.sqrt(xmesh ** 2.0 + ymesh ** 2.0)
+    n_levels = 4
+    colors = ['b', 'g', 'r', 'k']
+    contours = plt.contour(xmesh, ymesh, zs, levels = n_levels )
+    contour_vertices = [contours.allsegs[-1 - i][0] for i in range(1, n_levels + 1)] #nth outer contour is -1 - n
+
+    #Check the contours
+    [plt.scatter([elem[0] for elem in contour_vertices[i]], [elem[1] for elem in contour_vertices[i]], marker = 'x', color = colors[i]) for i in range(len(contour_vertices))]
+    plt.show()
+
+    #Now compute the area:
+    areas = [can.measureAreaOfContour(contour) for contour in contour_vertices]
+    print ('areas are: ' + str(areas))
+    #The first area is off because the contour goes off the screen - a good lesson in using this only when the contours are entirely contained within the plot region.
+    -------
+    The area in the contours, computed using Green's theorem, computed piecewise.
+    """
+    a = 0
+    x0,y0 = contour[0]
+    for [x1,y1] in contour[1:]:
+        dx = x1-x0
+        dy = y1-y0
+        a += 0.5*(y0*dx - x0*dy)
+        x0 = x1
+        y0 = y1
+    return a
+
 def cartesian(arrays, out=None):
     """
     (Copied from https://stackoverflow.com/questions/1208118/using-numpy-to-build-an-array-of-all-combinations-of-two-arrays)
@@ -210,7 +253,8 @@ def recPlaceElemInBin(elem, bin_edges):
 
 
 def binDataOfTwoVariables(xs, ys, zs, n_x_bins, n_y_bins,
-                          x_bin_boundaries = None, y_bin_boundaries = None, average_type = 'mean', zerrs = None, verbose = 0):
+                          x_bin_boundaries = None, y_bin_boundaries = None, x_bin_edges = None, y_bin_edges = None,
+                          average_type = 'mean', zerrs = None, verbose = 0):
     """
     Takes in 3 arrays of data: an x-variable, a y-variable, and a z-variable that
      is a function of x and y.
@@ -218,16 +262,18 @@ def binDataOfTwoVariables(xs, ys, zs, n_x_bins, n_y_bins,
     """
     if zerrs == None:
         zerrs = [1 for z in zs ]
-    if x_bin_boundaries == None:
-        min_x, max_x = [min(xs), max(xs)]
-        x_bin_boundaries = [min_x, max_x]
 
-    if y_bin_boundaries == None:
-        min_y, max_y = [min(ys), max(ys)]
-        y_bin_boundaries = [min_y, max_y]
+    if x_bin_edges == None:
+        if x_bin_boundaries == None:
+            min_x, max_x = [min(xs), max(xs)]
+            x_bin_boundaries = [min_x, max_x]
+        x_bin_edges = np.linspace(x_bin_boundaries[0], x_bin_boundaries[1], n_x_bins + 1)
 
-    x_bin_edges = np.linspace(x_bin_boundaries[0], x_bin_boundaries[1], n_x_bins + 1)
-    y_bin_edges = np.linspace(y_bin_boundaries[0], y_bin_boundaries[1], n_y_bins + 1)
+    if y_bin_edges == None:
+        if y_bin_boundaries == None:
+            min_y, max_y = [min(ys), max(ys)]
+            y_bin_boundaries = [min_y, max_y]
+        y_bin_edges = np.linspace(y_bin_boundaries[0], y_bin_boundaries[1], n_y_bins + 1)
 
     #bin indeces are based on the left edge of the bin.
     bin_memberships = [[recPlaceElemInBin(xs[i], x_bin_edges), recPlaceElemInBin(ys[i], y_bin_edges)] for i in range(len(zs))]
@@ -276,6 +322,41 @@ def functToPrintMinimization(loaded_funct, params, verbose = 0):
     if verbose:
         print ('params ' + str(params.tolist()) + '=> ' + str(result))
     return result
+
+
+def interpMaskedImage(z_data_2d, mask_region = [[-np.inf, np.inf], [-np.inf, np.inf]], av_dist = 2, interp_type = 'edge_interp' ):
+
+    filled_z_data_2d = np.copy(z_data_2d)
+    if interp_type == 'edge_interp':
+        #To do the interpolation, we spiral around the edges of the masked region and interpolate from adjacent pixels
+        while mask_region[0][0] < mask_region[0][1] and mask_region[1][0] < mask_region[1][1]:
+            interp_upper_row = [np.mean(filled_z_data_2d[mask_region[1][1]:mask_region[1][1] + av_dist,  i - av_dist:i + av_dist + 1]) for i in range(mask_region[0][0], mask_region[0][1] + 1)]
+            #print ('filled_z_data_2d[mask_region[1][1] - 1, mask_region[0][0]:mask_region[0][1] + 1] = ' + str(filled_z_data_2d[mask_region[1][1] - 1, mask_region[0][0]:mask_region[0][1] + 1]))
+            filled_z_data_2d[mask_region[1][1] - 1, mask_region[0][0]:mask_region[0][1] + 1] = interp_upper_row
+            #print ('filled_z_data_2d[mask_region[1][1] - 1, mask_region[0][0]:mask_region[0][1] + 1] = ' + str(filled_z_data_2d[mask_region[1][1] - 1, mask_region[0][0]:mask_region[0][1] + 1]))
+            interp_lower_row = [np.mean(filled_z_data_2d[mask_region[1][0] - av_dist - 1:mask_region[1][0] - 1, i - av_dist:i + av_dist + 1] ) for i in range(mask_region[0][0], mask_region[0][1] + 1)]
+            #print ('filled_z_data_2d[mask_region[1][0], mask_region[0][0]:mask_region[0][1] + 1] = ' + str(filled_z_data_2d[mask_region[1][0], mask_region[0][0]:mask_region[0][1] + 1]))
+            filled_z_data_2d[mask_region[1][0], mask_region[0][0]:mask_region[0][1] + 1] = interp_lower_row
+            #print ('filled_z_data_2d[mask_region[1][0], mask_region[0][0]:mask_region[0][1] + 1] = ' + str(filled_z_data_2d[mask_region[1][0], mask_region[0][0]:mask_region[0][1] + 1]))
+            interp_left_col = [ np.mean( filled_z_data_2d[i - av_dist:i + av_dist + 1, mask_region[0][0] - 1 - av_dist:mask_region[0][0] - 1 ] ) for i in range(mask_region[1][0], mask_region[1][1] + 1)]
+            #print ('filled_z_data_2d[mask_region[1][0]:mask_region[1][1] + 1, mask_region[0][0]]  = ' + str(filled_z_data_2d[mask_region[1][0]:mask_region[1][1] + 1, mask_region[0][0]] ))
+            filled_z_data_2d[mask_region[1][0]:mask_region[1][1] + 1, mask_region[0][0]] = interp_left_col
+            #print ('filled_z_data_2d[mask_region[1][0]:mask_region[1][1] + 1, mask_region[0][0]]  = ' + str(filled_z_data_2d[mask_region[1][0]:mask_region[1][1] + 1, mask_region[0][0]] ))
+            interp_right_col = [ np.mean( filled_z_data_2d[i - av_dist:i + av_dist + 1, mask_region[0][1]:mask_region[0][1] + av_dist] ) for i in range(mask_region[1][0], mask_region[1][1] + 1)]
+            #print ('filled_z_data_2d[mask_region[1][0]:mask_region[1][1] + 1, mask_region[0][1] - 1]  = ' + str(filled_z_data_2d[mask_region[1][0]:mask_region[1][1] + 1, mask_region[0][1] - 1] ))
+            filled_z_data_2d[mask_region[1][0]:mask_region[1][1] + 1, mask_region[0][1] - 1] = interp_right_col
+            #print ('filled_z_data_2d[mask_region[1][0]:mask_region[1][1] + 1, mask_region[0][1] - 1]  = ' + str(filled_z_data_2d[mask_region[1][0]:mask_region[1][1] + 1, mask_region[0][1] - 1] ))
+            mask_region = [[mask_region[0][0] + 1, mask_region[0][1] - 1], [mask_region[1][0] + 1, mask_region[1][1] - 1]]
+            #plt.imshow(filled_z_data_2d, vmin = 620, vmax = 640)
+            #plt.draw()
+            #plt.pause(0.2)
+            #plt.close('all')
+    #all_pixels = can.flattenListOfLists( [ [ (i,j) for i in range(np.array(z_data_2d[0])) ] for j in range(np.array(z_data_2d[1])) ] )
+    #unmasked_pixels_dict = {pixel:z_data_2d[pixel[0], pixel[1]] for pixel in all_pixels if not(pixel[0] < mask_region[0][1] or pixel[0] > mask_region[0][0] or pixel[1] < mask_region[1][1] or pixel[1] > mask_region[1][0]) }
+    #mask_vals = [[ for j=i in range(*mask_region)] for j in range(*mask_region)]
+    return filled_z_data_2d
+
+
 
 def fitMaskedImage(z_data_2d, z_errs_2d = None, fit_funct = 'poly1', mask_region = [[-np.inf, np.inf], [-np.inf, np.inf]], verbose = 0, init_guess = None, x_lims = None, y_lims = None, param_scalings = None):
     """
@@ -405,6 +486,11 @@ def getSpheroidalCoordinates(Rs, zs, alpha, gamma, prolate = 1):
 def measureAngularSeparationOnSky(obj1_pos, obj2_pos, return_radian = 0):
     """
     Takes in RA and Dec of two astronomical objects in degrees and return their angular separation in degrees.
+
+    NOTE: If you want to use this cantrip, you need to uncomment the
+    #from PyAstronomy import pyasl
+    line at the begining of the file.  It is commented out by default since it's an unusual library that we
+    don't want to force everyone to import if they don't need this function.
     """
     ang_sep = pyasl.getAngDist(obj1_pos[0], obj1_pos[1], obj2_pos[0], obj2_pos[1])
     if return_radian:
@@ -625,8 +711,20 @@ def consolidateList(list_to_consolidate, do_sort = 0):
 
     return consolidated_list
 
+def find2DMax(arr):
+    """
+    Find maximum location of 2d array, returning the value as [column number, row number]
+    """
+    max_indeces = np.unravel_index(arr.argmax(), arr.shape)
+    return max_indeces
 
 
+def find2DMin(arr):
+    """
+    Find minimum location of 2d array, returning the value as [column number, row number]
+    """
+    min_indeces = np.unravel_index(arr.argmin(), arr.shape)
+    return min_indeces
 
 def sigClipMean(list_for_mean, sig_clip = np.inf):
     """
@@ -821,11 +919,15 @@ def productSum(list_of_lists):
 def round_to_n (num_to_round, n_sig_figs):
     """
     Round a specified number to a given number of significant figures.
-    Example -
-    >>> c.round_to_n(151.1, 2)
+    Examples -
+    >>> can.round_to_n(151.1, 2)
     150
-    >>> c.round_to_n(0.001511, 2)
+    >>> can.round_to_n(0.001511, 2)
     0.0015
+    >>> can.round_to_n(159.1, 2)
+    160
+    >>> can.round_to_n(0.001591, 2)
+    0.0016
     """
     if num_to_round == 0.0 or np.isnan(num_to_round) or np.isinf(num_to_round):
         return num_to_round
@@ -931,6 +1033,16 @@ def sign(a):
     else:
         return np.sign(a)
 
+def safeToFloat(str_to_convert, verbose = 0):
+    try:
+        converted_value = float(str_to_convert)
+    except ValueError:
+        if verbose:
+            print (str_to_convert + ' cannot be converted to a float')
+        converted_value = str_to_convert
+    return converted_value
+
+
 
 def mergeFilesByColumn(file_names, save_file_name, file_dir = '', n_ignore = 0, delimiter = ' ', ignore_line_char = None, header_row = None, header_file_index = 1, verbose = 1):
     """
@@ -983,7 +1095,6 @@ def readInColumnsToList(file_name, file_dir = '', n_ignore = 0, n_ignore_end = 0
             lines = [[elem for elem in line.split(delimiter) ] for line in lines ]
         max_line_len = max([len(line) for line in lines])
         columns = (np.array(lines).transpose()).tolist()
-        #print ('columns = ' + str(columns))
         if convert_to_float:
             columns = [np.array(column, dtype = np.float64).tolist() for column in columns ]
         elif convert_to_int:
@@ -1379,7 +1490,7 @@ def saveDataToFitsFile(fits_data, file_name, save_dir, header = 'default', overw
             header = [hdul[0].header for i in range(n_mosaic_extensions + 1)]
 
     if data_type in ['image', 'Image', 'IMAGE', 'img', 'Img', 'IMG']:
-        print ('n_mosaic_extensions = ' + str(n_mosaic_extensions))
+        #print ('n_mosaic_extensions = ' + str(n_mosaic_extensions))
         if n_mosaic_extensions <= 1:
             master_hdu = fits.PrimaryHDU(fits_data.transpose(), header = header)
             master_hdul = fits.HDUList([master_hdu])
@@ -1408,7 +1519,44 @@ def saveDataToFitsFile(fits_data, file_name, save_dir, header = 'default', overw
     return 1
 
 
-def smartMedianFitsFiles(file_names, file_dir, x_partitions, y_partitions, ref_index = 0, n_mosaic_image_extensions = 0, scalings = [1]):
+def smartMeanFitsFiles(file_names, file_dir, x_partitions, y_partitions, ref_index = 0, n_mosaic_image_extensions = 0, scalings = [1]):
+    """
+    Used for combining sets of fits files.  Useful for stacking
+     that could cause computer to run out of memory if all fits files
+     were fully read into memory simultaneously.  It manages this by
+     reading in one file at a time and adding it to the running total
+    The user specifies into how many partitions the files should be broken into
+     along both the x and y axes and those partitions are median combined.
+     If the user runs this code with x_partitions = 2 and y_partitions = 3,
+     the code will break the images into 2 X 3 = 6 partitions.
+    """
+    ref_file = file_names[0]
+    if n_mosaic_image_extensions < 1:
+        ref_image, ref_header = readInDataFromFitsFile(ref_file, file_dir, n_mosaic_image_extensions = n_mosaic_image_extensions)
+        ref_image = np.array([ref_image])
+    else:
+        ref_image, ref_header = readInDataFromFitsFile(ref_file, file_dir, n_mosaic_image_extensions = n_mosaic_image_extensions)
+    if len(scalings) < 2:
+        scalings = [ scalings[0] for file_name in file_names ]
+    ref_image_shape = np.shape(ref_image)
+    #print ('ref_image_shape = ' + str(ref_image_shape))
+    n_mosaics = ref_image_shape[0]
+    del ref_image
+    mean_image = np.zeros(ref_image_shape)
+    added_images = 0
+
+    for file_name in file_names:
+        data_from_file, headers = readInDataFromFitsFile(file_names[n_file], file_dir, n_mosaic_image_extensions = n_mosaic_image_extensions)
+        mean_image = mean_image + data_from_file
+        added_images = added_images + 1
+    mean_image = mean_image / added_images
+
+    if n_mosaic_image_extensions < 1: mean_image = mean_image[0]
+
+    ref_header['STACKED'] = 'Mean stacked ' + str(len(file_names)) + ' images.'
+    return mean_image, ref_header
+
+def smartMedianFitsFiles(file_names, file_dir, x_partitions, y_partitions, ref_index = 0, n_mosaic_image_extensions = 0, scalings = [1], subtract_stat = None):
     """
     Used for combining sets of fits files.  Useful for stacking
      that could cause computer to run out of memory if all fits files
@@ -1430,6 +1578,13 @@ def smartMedianFitsFiles(file_names, file_dir, x_partitions, y_partitions, ref_i
     ref_image_shape = np.shape(ref_image)
     #print ('ref_image_shape = ' + str(ref_image_shape))
     n_mosaics = ref_image_shape[0]
+    subtract_vals = [0.0 for file_name in file_names]
+    if subtract_stat == 'median':
+        subtract_vals = [np.median(readInDataFromFitsFile(file_name, file_dir, n_mosaic_image_extensions = n_mosaic_image_extensions)[0]) for file_name in file_names]
+    elif subtract_stat == 'mean':
+        subtract_vals = [np.mean(readInDataFromFitsFile(file_name, file_dir, n_mosaic_image_extensions = n_mosaic_image_extensions)[0]) for file_name in file_names]
+    #print ('subtract_stat = ' + str(subtract_stat)) 
+    #print ('subtract_vals = ' + str(subtract_vals))
     del ref_image
     med_image = np.zeros(ref_image_shape)
 
@@ -1470,7 +1625,7 @@ def smartMedianFitsFiles(file_names, file_dir, x_partitions, y_partitions, ref_i
                 del data_from_file
             #print ('Scaling images by the scaling...')
             #print ('[np.shape(temp_image_stack[i]) for i in range(len(scalings))] = ' + str([np.shape(temp_image_stack[i]) for i in range(len(scalings))]) )
-            temp_image_stack = [np.array(temp_image_stack[i]) * scalings[i] for i in range(len(scalings))]
+            temp_image_stack = [(np.array(temp_image_stack[i]) - subtract_vals[i]) * scalings[i] for i in range(len(scalings))]
             #print ('Median combine partitioned parts of base images...')
             partial_med = np.median(temp_image_stack, axis = 0)
             del temp_image_stack
@@ -1530,20 +1685,23 @@ def saveListToFile(list_to_save, save_file, save_dir = '', sep = ', ', append = 
      of the file.
     """
     if not (header is None):
-        list_to_save = [header] + list_to_save
-    #print ('list_to_save = ' + str(list_to_save) )
+        if type(header) == str:
+            list_to_save = [header] + list_to_save
+        else:
+            list_to_save = header + list_to_save
     if append:
         write_type_str = 'a'
     else:
         write_type_str = 'w'
 
-    print ('save_file = ' + save_file)
     with open(save_dir + save_file, write_type_str) as f:
         for elem in list_to_save:
             if type(elem) is list:
-                f.write(sep.join([str(elem_of_elem) for elem_of_elem in elem]) + '\n')
+                str_to_write = sep.join([str(elem_of_elem) for elem_of_elem in elem]) + '\n'
             else:
-                f.write(str(elem) + '\n')
+                str_to_write = str(elem) + '\n'
+            f.write(str_to_write)
+            #f.write(str(elem) )
     return 1
 
 
@@ -1574,7 +1732,7 @@ def getElementsOfOneListNotInAnother(existingList, removingList):
     return remaining_list
 
 
-def flattenListOfLists(list_to_flatten):
+def flattenListOfLists(list_to_flatten, fully_flatten = 0):
     """
     Take a list of sub-lists and combine the elements of each of those lists into a list.
     Note: we only reduce the number of lists by 1.  Repetitive calls can flatten further.
@@ -1586,7 +1744,10 @@ def flattenListOfLists(list_to_flatten):
     [1, 2, 1, 2, 10, 20, 10, 20, 100, 200, 100, 200]
     """
     #print ('Flattening a list...')
-    return [item for sublist in list_to_flatten for item in sublist]
+    flattened_list = [item for sublist in list_to_flatten for item in sublist]
+    if fully_flatten and type(flattened_list[0]) == list:
+        flattened_list = flattenListOfLists(flattened_list, fully_flatten = fully_flatten)
+    return flattened_list
 
 
 def removeFileTagFromString(file_name):
@@ -1670,7 +1831,7 @@ def safeLog10BigN(num, max_val = 18638034485637632000/2, scaling = 10):
         return safeLog10BigN(num / 10, max_val = max_val, scaling = scaling) + np.log10(scaling)
 
 
-def recursiveStrToListOfLists(str_of_lists_of_lists, elem_type_cast = str, list_bracket_types = ['[', ']'] ):
+def recursiveStrToListOfLists(str_of_lists_of_lists, elem_type_cast = str, list_bracket_types = ['[', ']'], delimiter = ',' ):
     """
     Take a string of a python list, and turn it into a list.  This works even if the list itself
     contains lists.  That is the recursive part.
@@ -1684,9 +1845,9 @@ def recursiveStrToListOfLists(str_of_lists_of_lists, elem_type_cast = str, list_
     str_of_lists_of_lists = str_of_lists_of_lists.strip()
     #If we need to start a new list, then we go one level deeper
     if (str_of_lists_of_lists[0] != list_bracket_types[0] or str_of_lists_of_lists[-1] != list_bracket_types[1]):
-        print('The string provided does not start with "[" and end with "]" and thus cannot be converted to a list.')
+        print('The string provided does not start with "'  + list_bracket_types[0] + '" and end with "'  + list_bracket_types[0] + '" and thus cannot be converted to a list.')
         return 0
-    raw_elems_of_list = str_of_lists_of_lists[1:-1].split(',')
+    raw_elems_of_list = str_of_lists_of_lists[1:-1].split(delimiter)
     raw_elems_of_list = [elem.strip() for elem in raw_elems_of_list]
     elems_of_list = []
     closing_elem_index = -1

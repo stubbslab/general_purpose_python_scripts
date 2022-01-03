@@ -5,6 +5,13 @@ import numpy as np
 
 class AstronomicalParameterArchive:
 
+    def getSteridanToSquareArcsec(self):
+        return 4.255 * 10.0 ** 10.0
+
+    def getKmPerSToPcPerYr(self):
+         km_per_s_to_pc_per_yr = 1.0 / ( self.getParsecToM() / 1000.0  * self.getSecondToYear() )
+         return km_per_s_to_pc_per_yr
+
     #gives Newton's constant in m^3 / (kg s)
     def getGravitationalConstant(self):
         return self.gravitational_constant
@@ -51,6 +58,10 @@ class AstronomicalParameterArchive:
     def getGamma(self):
         return self.gamma
 
+    def getElectronCharge(self):
+        return self.e_charge
+
+
     def getPrefix(self, prefix):
         return self.metric_prefixes[prefix.lower()]
 
@@ -83,6 +94,7 @@ class AstronomicalParameterArchive:
         self.amin_to_asec = 60.0 #convert arcmin to arcsecond
         self.gamma=4.307 * 10**(-3) #constant scaling between (G M)/ (rs sigsqr) when M, rs, sigsqr are expressed in particular units (here, )
         self.angleMotConv = 0.0829 / 1000 # constant converting angular proper motion of galaxy into correction to los velocity, provided distance to galaxy is given in pc, position of star on sky is in degrees, and measured proper motion is in mas/yr
+        self.e_charge = 1.60217662 * 10 ** -19 #electron charge in Coloumbs
 
         #Do calculation in Julian years
         self.sec_to_yr = 1.0 / 31557600.0
