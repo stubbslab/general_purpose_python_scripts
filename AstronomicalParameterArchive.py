@@ -12,7 +12,7 @@ class AstronomicalParameterArchive:
          km_per_s_to_pc_per_yr = 1.0 / ( self.getParsecToM() / 1000.0  * self.getSecondToYear() )
          return km_per_s_to_pc_per_yr
 
-    #gives Newton's constant in m^3 / (kg s)
+    #gives Newton's constant in m^3 / (kg s^2)
     def getGravitationalConstant(self):
         return self.gravitational_constant
 

@@ -1481,20 +1481,27 @@ def saveDataToFitsFile(fits_data, file_name, save_dir, header = 'default', overw
        in which case the data to be saved will be a data array and (not optionally) names
        of the columns, specified by the col_names variable.
     """
-    if header is 'default':
-        default_file = '/Users/sashabrownsberger/Documents/sashas_python_scripts/general_purpose/extra_files/' + 'default.fits'
-        hdul  = fits.open(default_file)
-        if n_mosaic_extensions <= 1:
-            header = hdul[0].header
-        else:
-            header = [hdul[0].header for i in range(n_mosaic_extensions + 1)]
+    #if header is 'default':
+    #    default_file = '/Users/sashabrownsberger/Documents/sashas_python_scripts/general_purpose/extra_files/' + 'default.fits'
+    #    hdul  = fits.open(default_file)
+    #    if n_mosaic_extensions <= 1:
+    #        header = hdul[0].header
+    #    else:
+    #        header = [hdul[0].header for i in range(n_mosaic_extensions + 1)]
+    #    print ('header = ' + str(header))
 
     if data_type in ['image', 'Image', 'IMAGE', 'img', 'Img', 'IMG']:
         #print ('n_mosaic_extensions = ' + str(n_mosaic_extensions))
         if n_mosaic_extensions <= 1:
-            master_hdu = fits.PrimaryHDU(fits_data.transpose(), header = header)
+            print ('Here 1')
+            print ('np.shape(fits_data) = ' + str(np.shape(fits_data)))
+            if header != 'default':
+                master_hdu = fits.PrimaryHDU(fits_data.transpose(), header = header)
+            else:
+                master_hdu = fits.PrimaryHDU(fits_data.transpose())
             master_hdul = fits.HDUList([master_hdu])
         else:
+            print ('Here 1')
             master_hdus = [fits.PrimaryHDU(header = header[0])] + [fits.ImageHDU(fits_data[i].transpose(), header = header[i+1]) for i in range(n_mosaic_extensions)]
             #print ('master_hdus = ' )
             #print ( master_hdus )
@@ -1583,7 +1590,7 @@ def smartMedianFitsFiles(file_names, file_dir, x_partitions, y_partitions, ref_i
         subtract_vals = [np.median(readInDataFromFitsFile(file_name, file_dir, n_mosaic_image_extensions = n_mosaic_image_extensions)[0]) for file_name in file_names]
     elif subtract_stat == 'mean':
         subtract_vals = [np.mean(readInDataFromFitsFile(file_name, file_dir, n_mosaic_image_extensions = n_mosaic_image_extensions)[0]) for file_name in file_names]
-    #print ('subtract_stat = ' + str(subtract_stat)) 
+    #print ('subtract_stat = ' + str(subtract_stat))
     #print ('subtract_vals = ' + str(subtract_vals))
     del ref_image
     med_image = np.zeros(ref_image_shape)
