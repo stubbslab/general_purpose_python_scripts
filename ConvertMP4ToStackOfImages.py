@@ -5,7 +5,7 @@ import numpy as np
 import cantrips as can
 import matplotlib.pyplot as plt
 
-def video_to_frames(input_video_file, read_dir, save_dir = None, save_file_type = 'png', max_n_frames_to_convert = np.inf):
+def video_to_frames(input_video_file, read_dir, save_dir = None, save_file_type = 'png', max_n_frames_to_convert = np.inf, color_save_suffixes = ['r','g','b']):
     """Function to extract frames from input video file
     and save them as separate frames in an output directory.
     Args:
@@ -29,23 +29,23 @@ def video_to_frames(input_video_file, read_dir, save_dir = None, save_file_type 
     print ("Converting video..\n")
     # Start converting the video
     while cap.isOpened():
-        print ('Hello 1? ')
         # Extract the frame
         ret, frame = cap.read()
         if not ret:
-            print ('Hello 2? ')
             continue
         # Write the results back to output location.
-        print ('Hello 3?')
         save_name =  input_video_file.split('.')[0] + '_' + "%#05d."  % (count+1) + save_file_type
         if save_file_type.lower() == 'fits':
-            print ('frame[:, :, 0] = ' + str(frame[:, :, 0] ))
-            bw_frame = np.array(frame[:, :, 0]) + np.array(frame[:, :, 1]) + np.array(frame[:, :, 1])
-            bw_frame = np.flip(bw_frame, axis = 0)
+            #bw_frame = np.array(frame[:, :, 0]) #+ np.array(frame[:, :, 1]) + np.array(frame[:, :, 1])
+            #bw_frame = np.flip(bw_frame, axis = 0)
             #bw_frame = bw_frame * 0.0 + 1
             #bw_frame = np.zeros((100, 100)) + 2
             #bw_frame = np.array([[bw_frame[i,j] * i + j for i in range(np.shape(bw_frame)[0])] for j in range(np.shape(bw_frame)[1])])
-            can.saveDataToFitsFile(np.transpose(bw_frame), save_name, save_dir, header = 'default')
+            for i in range(3):
+                single_color_frame = np.flip(frame[:, :, i], axis  = 0)
+                can.saveDataToFitsFile(np.transpose(single_color_frame), save_name.split('.')[0] + '_' + color_save_suffixes[i] + '.' + save_file_type, save_dir, header = 'default')
+                plt.imshow(single_color_frame)
+                plt.show() 
         else:
             print ('save_name = ' + str(save_name))
             cv2.imwrite(save_dir + save_name, frame)
@@ -64,6 +64,8 @@ def video_to_frames(input_video_file, read_dir, save_dir = None, save_file_type 
 
 if __name__=="__main__":
 
-    input_loc = '/path/to/video/00009.MTS'
-    output_loc = '/path/to/output/frames/'
-    video_to_frames(input_loc, output_loc)
+    input_file = 'C0007.MP4'
+    input_file_dir = '/Users/elanaurbach/Desktop/SONY RX10 Test/'
+    max_n_frames = 10 #np.inf
+    save_file_type = 'fits' #png
+    video_to_frames(input_file, input_file_dir, max_n_frames_to_convert = max_n_frames, save_file_type = save_file_type)
